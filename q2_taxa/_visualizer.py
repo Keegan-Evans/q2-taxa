@@ -23,21 +23,28 @@ TEMPLATES = pkg_resources.resource_filename('q2_taxa', 'assets')
 
 
 def barplot(output_dir: str, table: pd.DataFrame, taxonomy: pd.Series,
-            metadata: Metadata) -> None:
-    ids_not_in_metadata = set(table.index) - set(metadata.ids)
-    if ids_not_in_metadata:
-        raise ValueError('Sample IDs found in the table are missing in the '
-                         f'metadata: {ids_not_in_metadata!r}.')
+            metadata: Metadata = None) -> None:
+    if metadata == None:
+        md = False
+        set(table.index)
+    else:
+        ids_not_in_metadata = set(table.index) - set(metadata.ids)
+        if ids_not_in_metadata:
+            raise ValueError('Sample IDs found in the table are missing in the '
+                             f'metadata: {ids_not_in_metadata!r}.')
+        metadata = metadata.to_dataframe()
+        md = True
+            
 
-    metadata = metadata.to_dataframe()
     jsonp_files, csv_files = [], []
     collapsed_tables = _extract_to_level(taxonomy, table)
 
     for level, df in enumerate(collapsed_tables, 1):
         # Stash column labels before manipulating dataframe
         taxa_cols = df.columns.values.tolist()
-        # Join collapsed table with metadata
-        df = df.join(metadata, how='left')
+        # Join collapsed table with metadata, if necessary
+        if md:
+            df = df.join(metadata, how='left')
         df = df.reset_index(drop=False)  # Move index into columns
         # Our JS sort works best with empty strings vs nulls
         df = df.fillna('')
